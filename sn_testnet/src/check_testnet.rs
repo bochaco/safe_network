@@ -56,7 +56,7 @@ impl Display for NodeInfo {
 }
 
 pub async fn run(logs_path: &Path, node_count: u32) -> Result<()> {
-    let mut delay_secs = 10;
+    let mut delay_secs = 180;
     while delay_secs > 0 {
         println!("We'll be verifying testnet nodes info in {delay_secs}secs ...");
         sleep(Duration::from_secs(1)).await;
@@ -97,72 +97,64 @@ pub async fn run(logs_path: &Path, node_count: u32) -> Result<()> {
     for i in 1..nodes.len() + 1 {
         let rpc_addr: SocketAddr = format!("127.0.0.1:{}", 12000 + i as u16).parse()?;
         println!();
-        println!("Checking peer id and network knowledge of node with RPC at {rpc_addr}");
-        let (node_info, connected_peers) = send_rpc_queries_to_node(rpc_addr).await?;
-        let peer_id = node_info.peer_id;
 
-        let node_log_info = nodes
-            .get(&node_info.pid)
-            .expect("Mismatch in node's PID between logs and RPC response");
+        let mut attempts = 1;
+        while attempts <= 2 {
+            println!("Checking peer id and network knowledge of node with RPC at {rpc_addr} (attempt #{attempts})");
+            let (node_info, connected_peers) = send_rpc_queries_to_node(rpc_addr).await?;
+            let peer_id = node_info.peer_id;
 
-        assert_eq!(
-            peer_id, node_log_info.peer_id,
-            "Node at {} reported a mismatching PeerId: {}",
-            rpc_addr, peer_id
-        );
+            let node_log_info = nodes
+                .get(&node_info.pid)
+                .expect("Mismatch in node's PID between logs and RPC response");
 
-        if node_info.listeners != node_log_info.listeners {
-            println!(
-                "Node at {} reported a mismatching list of listeners: {:?}",
-                rpc_addr, node_info.listeners
+            assert_eq!(
+                peer_id, node_log_info.peer_id,
+                "Node at {} reported a mismatching PeerId: {}",
+                rpc_addr, peer_id
             );
-        }
 
-        /* Temporarily skipping this verification
-        assert_eq!(
-            node_info.listeners, node_log_info.listeners,
-            "Node at {} reported a mismatching list of listeners: {:?}",
-            rpc_addr, node_info.listeners
-        );
-        */
+            let listeners_mismatch = node_info.listeners != node_log_info.listeners;
+            if listeners_mismatch {
+                println!(
+                    "Node at {} reported a mismatching list of listeners: {:?}",
+                    rpc_addr, node_info.listeners
+                );
+            }
 
-        if connected_peers.len() != expected_node_count - 1 {
-            println!(
-                "Node {} is connected to {} peers, expected: {}. Connected peers: {:?}",
-                peer_id,
-                connected_peers.len(),
-                expected_node_count - 1,
-                connected_peers
+            let connected_peers_mismatch = connected_peers.len() != expected_node_count - 1;
+            if connected_peers_mismatch {
+                println!(
+                    "Node {} is connected to {} peers, expected: {}. Connected peers: {:?}",
+                    peer_id,
+                    connected_peers.len(),
+                    expected_node_count - 1,
+                    connected_peers
+                );
+            }
+
+            let expected_connections = nodes
+                .iter()
+                .filter_map(|(_, node_info)| {
+                    if node_info.peer_id != peer_id {
+                        Some(node_info.peer_id)
+                    } else {
+                        None
+                    }
+                })
+                .collect::<BTreeSet<_>>();
+
+            assert_eq!(
+                connected_peers, expected_connections,
+                "At least one peer the node is connected to is not expected"
             );
+
+
+        println!("We'll be verifying testnet nodes info in {delay_secs}secs ...");
+        sleep(Duration::from_secs(1)).await;
+
+
         }
-
-        /* Temporarily skipping these verifications
-        assert_eq!(
-            connected_peers.len(),
-            expected_node_count - 1,
-            "Node {} is connected to {} peers, expected: {}. Connected peers: {:?}",
-            peer_id,
-            connected_peers.len(),
-            expected_node_count - 1,
-            connected_peers
-        );
-
-        let expected_connections = nodes
-            .iter()
-            .filter_map(|(_, node_info)| {
-                if node_info.peer_id != peer_id {
-                    Some(node_info.peer_id)
-                } else {
-                    None
-                }
-            })
-            .collect::<BTreeSet<_>>();
-
-        assert_eq!(
-            connected_peers, expected_connections,
-            "At least one peer the node is connected to is not expected"
-        );
-        */
 
         println!("{node_info}");
     }
