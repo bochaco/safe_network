@@ -16,7 +16,7 @@ mod safenode_proto {
     tonic::include_proto!("safenode_proto");
 }
 
-use color_eyre::Result;
+use color_eyre::{eyre::bail, Result};
 use libp2p::{multiaddr::Protocol, Multiaddr, PeerId};
 use regex::Regex;
 use std::{
@@ -56,9 +56,9 @@ impl Display for NodeInfo {
 }
 
 pub async fn run(logs_path: &Path, node_count: u32) -> Result<()> {
-    let mut delay_secs = 180;
+    let mut delay_secs = 10;
     while delay_secs > 0 {
-        println!("We'll be verifying testnet nodes info in {delay_secs}secs ...");
+        println!("Verifying testnet nodes info in {delay_secs}secs ...");
         sleep(Duration::from_secs(1)).await;
         delay_secs -= 1;
     }
@@ -96,10 +96,10 @@ pub async fn run(logs_path: &Path, node_count: u32) -> Result<()> {
     // let's check all nodes know about each other on the network
     for i in 1..nodes.len() + 1 {
         let rpc_addr: SocketAddr = format!("127.0.0.1:{}", 12000 + i as u16).parse()?;
-        println!();
 
         let mut attempts = 1;
-        while attempts <= 2 {
+        loop {
+            println!();
             println!("Checking peer id and network knowledge of node with RPC at {rpc_addr} (attempt #{attempts})");
             let (node_info, connected_peers) = send_rpc_queries_to_node(rpc_addr).await?;
             let peer_id = node_info.peer_id;
@@ -114,16 +114,16 @@ pub async fn run(logs_path: &Path, node_count: u32) -> Result<()> {
                 rpc_addr, peer_id
             );
 
-            let listeners_mismatch = node_info.listeners != node_log_info.listeners;
-            if listeners_mismatch {
+            let listeners_is_ok = node_info.listeners == node_log_info.listeners;
+            if !listeners_is_ok {
                 println!(
                     "Node at {} reported a mismatching list of listeners: {:?}",
                     rpc_addr, node_info.listeners
                 );
             }
 
-            let connected_peers_mismatch = connected_peers.len() != expected_node_count - 1;
-            if connected_peers_mismatch {
+            let connected_peers_is_ok = connected_peers.len() == expected_node_count - 1;
+            if !connected_peers_is_ok {
                 println!(
                     "Node {} is connected to {} peers, expected: {}. Connected peers: {:?}",
                     peer_id,
@@ -144,19 +144,28 @@ pub async fn run(logs_path: &Path, node_count: u32) -> Result<()> {
                 })
                 .collect::<BTreeSet<_>>();
 
-            assert_eq!(
-                connected_peers, expected_connections,
-                "At least one peer the node is connected to is not expected"
-            );
+            let expected_conns_is_ok = connected_peers == expected_connections;
+            if !expected_conns_is_ok {
+                println!("At least one peer the node is connected to is not expected");
+            }
 
-
-        println!("We'll be verifying testnet nodes info in {delay_secs}secs ...");
-        sleep(Duration::from_secs(1)).await;
-
-
+            if listeners_is_ok && connected_peers_is_ok && expected_conns_is_ok {
+                println!("{node_info}");
+                break;
+            } else {
+                if attempts >= 3 {
+                    bail!(
+                        "Errors detected with node {peer_id}, RPC endpoint at {rpc_addr}, after {attempts} attempts."
+                    );
+                } else {
+                    let delay = Duration::from_secs(180);
+                    println!();
+                    println!("Retrying the verification with this node in {delay:?} ...");
+                    sleep(delay).await;
+                    attempts += 1;
+                }
+            }
         }
-
-        println!("{node_info}");
     }
 
     println!();
