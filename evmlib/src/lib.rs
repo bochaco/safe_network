@@ -10,6 +10,12 @@
 #![allow(clippy::expect_used)]
 // Allow enum variant names that end with Error as they come from external derives
 #![allow(clippy::enum_variant_names)]
+use crate::common::{Amount, QuoteHash};
+use crate::contract::payment_vault::{
+    error, handler::PaymentVaultHandler, interface::IPaymentVault,
+};
+use crate::quoting_metrics::QuotingMetrics;
+use crate::utils::http_provider;
 
 use crate::common::Address;
 use crate::utils::get_evm_network;
@@ -50,6 +56,12 @@ static PUBLIC_ARBITRUM_SEPOLIA_HTTP_RPC_URL: LazyLock<reqwest::Url> = LazyLock::
         .expect("Invalid RPC URL")
 });
 
+static PUBLIC_LND_HTTP_RPC_URL: LazyLock<reqwest::Url> = LazyLock::new(|| {
+    "https:///localhost:13002"
+        .parse()
+        .expect("Invalid LND RPC URL")
+});
+
 const ARBITRUM_ONE_PAYMENT_TOKEN_ADDRESS: Address =
     address!("a78d8321B20c4Ef90eCd72f2588AA985A4BDb684");
 
@@ -88,6 +100,7 @@ pub enum Network {
     #[default]
     ArbitrumOne,
     ArbitrumSepoliaTest,
+    LightningNetwork,
     Custom(CustomNetwork),
 }
 
@@ -96,6 +109,7 @@ impl std::fmt::Display for Network {
         match self {
             Network::ArbitrumOne => write!(f, "evm-arbitrum-one"),
             Network::ArbitrumSepoliaTest => write!(f, "evm-arbitrum-sepolia-test"),
+            Network::LightningNetwork => write!(f, "lightning-network"),
             Network::Custom(_) => write!(f, "evm-custom"),
         }
     }
@@ -108,6 +122,7 @@ impl std::str::FromStr for Network {
         match s {
             "evm-arbitrum-one" => Ok(Network::ArbitrumOne),
             "evm-arbitrum-sepolia-test" => Ok(Network::ArbitrumSepoliaTest),
+            "lightning-network" => Ok(Network::LightningNetwork),
             _ => Err(()),
         }
     }
@@ -132,6 +147,7 @@ impl Network {
         match self {
             Network::ArbitrumOne => "arbitrum-one",
             Network::ArbitrumSepoliaTest => "arbitrum-sepolia-test",
+            Network::LightningNetwork => "lightning-network",
             Network::Custom(_) => "custom",
         }
     }
@@ -140,6 +156,7 @@ impl Network {
         match self {
             Network::ArbitrumOne => &PUBLIC_ARBITRUM_ONE_HTTP_RPC_URL,
             Network::ArbitrumSepoliaTest => &PUBLIC_ARBITRUM_SEPOLIA_HTTP_RPC_URL,
+            Network::LightningNetwork => &PUBLIC_LND_HTTP_RPC_URL,
             Network::Custom(custom) => &custom.rpc_url_http,
         }
     }
@@ -149,6 +166,7 @@ impl Network {
             Network::ArbitrumOne => &ARBITRUM_ONE_PAYMENT_TOKEN_ADDRESS,
             Network::ArbitrumSepoliaTest => &ARBITRUM_SEPOLIA_TEST_PAYMENT_TOKEN_ADDRESS,
             Network::Custom(custom) => &custom.payment_token_address,
+            Network::LightningNetwork => todo!("PAYMENT ADDRESS MISSING"),
         }
     }
 
@@ -157,6 +175,76 @@ impl Network {
             Network::ArbitrumOne => &ARBITRUM_ONE_DATA_PAYMENTS_ADDRESS,
             Network::ArbitrumSepoliaTest => &ARBITRUM_SEPOLIA_TEST_DATA_PAYMENTS_ADDRESS,
             Network::Custom(custom) => &custom.data_payments_address,
+            Network::LightningNetwork => {
+                todo!("DATA PAYMENT ADDRESS NOT SUPPORTED FOR LIGHTNING NETWORK")
+            }
+        }
+    }
+
+    /// Add LN invoice if netowkr is LightningNetwork
+    pub async fn add_invoice(&self, amount: Amount) -> String {
+        // TODO: send request to LND node to create an invoice
+        format!("TODO-create-LN-invoice-price-{amount}")
+    }
+
+    /// Helper function to return a quote for the given quoting metrics.
+    pub async fn get_market_price(
+        &self,
+        quoting_metrics: Vec<QuotingMetrics>,
+    ) -> Result<Vec<Amount>, error::Error> {
+        if matches!(self, Self::LightningNetwork) {
+            Ok(quoting_metrics
+                .iter()
+                .map(|q| {
+                    // FIXME: use a proper quoting formula
+                    let amt = Amount::from(q.data_size / 100);
+                    println!(">>>> QUOTE for size {}: {amt}", q.data_size);
+                    amt
+                })
+                .collect())
+        } else {
+            let provider = http_provider(self.rpc_url().clone());
+            let payment_vault = PaymentVaultHandler::new(*self.data_payments_address(), provider);
+            payment_vault.get_quote(quoting_metrics).await
+        }
+    }
+
+    /// Helper function to verify whether a data payment is valid.
+    /// Returns the amount paid to the owned quote hashes.
+    pub async fn verify_data_payment(
+        &self,
+        owned_quote_hashes: Vec<QuoteHash>,
+        payment: Vec<(QuoteHash, QuotingMetrics, Address)>,
+    ) -> Result<Amount, error::Error> {
+        if matches!(self, Self::LightningNetwork) {
+            // TODO: query the LN node to see if the invoice has been payed
+            Err(error::Error::PaymentInvalid)
+        } else {
+            let provider = http_provider(self.rpc_url().clone());
+            let payment_vault = PaymentVaultHandler::new(*self.data_payments_address(), provider);
+
+            let mut amount = Amount::ZERO;
+
+            let payment_verifications: Vec<_> = payment
+                .into_iter()
+                .map(IPaymentVault::PaymentVerification::from)
+                .collect();
+
+            let payment_verification_results =
+                payment_vault.verify_payment(payment_verifications).await?;
+
+            for payment_verification_result in payment_verification_results {
+                // TODO we currently fail on a single invalid payment, maybe we should deal with this in a different way
+                if !payment_verification_result.isValid {
+                    return Err(error::Error::PaymentInvalid);
+                }
+
+                if owned_quote_hashes.contains(&payment_verification_result.quoteHash) {
+                    amount += payment_verification_result.amountPaid;
+                }
+            }
+
+            Ok(amount)
         }
     }
 }

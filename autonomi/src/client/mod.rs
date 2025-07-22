@@ -237,6 +237,27 @@ impl Client {
         Self::init_with_config(client_config).await
     }
 
+    /// Initialize a client that is configured to be connected to the Formicaio network using Lightning Network for payments.
+    pub async fn init_ln() -> Result<Self, ConnectError> {
+        let bootstrap_cache_config = crate::BootstrapCacheConfig::new(false)
+            .inspect_err(|errr| {
+                warn!("Failed to create bootstrap cache config: {errr}");
+            })
+            .ok();
+
+        Self::init_with_config(ClientConfig {
+            init_peers_config: InitialPeersConfig {
+                local: true,
+                ..Default::default()
+            },
+            evm_network: EvmNetwork::LightningNetwork,
+            strategy: Default::default(),
+            network_id: Some(3), // FIXME: use pub const
+            bootstrap_cache_config,
+        })
+        .await
+    }
+
     /// Initialize a client that bootstraps from a list of peers.
     ///
     /// If any of the provided peers is a global address, the client will not be local.

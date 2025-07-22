@@ -11,7 +11,6 @@ use std::collections::BTreeSet;
 use crate::error::PutValidationError;
 use crate::{Marker, Result, node::Node};
 use ant_evm::ProofOfPayment;
-use ant_evm::payment_vault::verify_data_payment;
 use ant_protocol::storage::GraphEntry;
 use ant_protocol::{
     NetworkAddress, PrettyPrintRecordKey,
@@ -801,12 +800,10 @@ impl Node {
         // check if payment is valid on chain
         let payments_to_verify = payment.digest();
         let owned_payment_quotes: Vec<_> = own_quotes.iter().map(|quote| quote.hash()).collect();
-        let reward_amount = match verify_data_payment(
-            self.evm_network(),
-            owned_payment_quotes.clone(),
-            payments_to_verify.clone(),
-        )
-        .await
+        let reward_amount = match self
+            .evm_network()
+            .verify_data_payment(owned_payment_quotes.clone(), payments_to_verify.clone())
+            .await
         {
             Ok(amount) => amount,
             Err(e) => {
@@ -816,7 +813,8 @@ impl Node {
                     RETRY_PAYMENT_VERIFICATION_WAIT_TIME_SECS,
                 ))
                 .await;
-                verify_data_payment(self.evm_network(), owned_payment_quotes, payments_to_verify)
+                self.evm_network()
+                    .verify_data_payment(owned_payment_quotes, payments_to_verify)
                     .await
                     .inspect_err(|e| {
                         warn!("Failed to verify record payment on the second attempt: {e}");

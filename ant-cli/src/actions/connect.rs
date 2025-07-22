@@ -7,7 +7,9 @@
 // permissions and limitations relating to use of the SAFE Network Software.
 
 use crate::exit_code::{ExitCodeError, connect_error_exit_code, evm_util_error_exit_code};
-use crate::opt::{ALPHA_NETWORK_ID, LOCAL_NETWORK_ID, MAIN_NETWORK_ID, NetworkId};
+use crate::opt::{
+    ALPHA_NETWORK_ID, LIGHTNING_NETWORK_ID, LOCAL_NETWORK_ID, MAIN_NETWORK_ID, NetworkId,
+};
 use autonomi::client::config::ClientOperatingStrategy;
 use autonomi::{Client, ClientConfig, InitialPeersConfig, get_evm_network};
 use color_eyre::eyre::eyre;
@@ -60,6 +62,11 @@ pub async fn connect_to_network_with_config(
             println!("Connecting to the alpha Autonomi network...");
             progress_bar.set_message("Connecting to the alpha Autonomi network...");
             Client::init_alpha().await
+        }
+        LIGHTNING_NETWORK_ID => {
+            println!("Connecting to a local Lightning Network...");
+            progress_bar.set_message("Connecting to a local Autonomi network...");
+            Client::init_ln().await
         }
         _ => {
             println!("Connecting to a custom Autonomi network...");

@@ -19,6 +19,9 @@ pub enum EvmNetworkCommand {
     /// Use the Arbitrum Sepolia network with test contracts
     EvmArbitrumSepoliaTest,
 
+    /// Use the Lightning Network
+    LightningNetwork,
+
     /// Use a custom network
     EvmCustom {
         /// The RPC URL for the custom network
@@ -45,6 +48,7 @@ impl TryInto<EvmNetwork> for EvmNetworkCommand {
         match self {
             Self::EvmArbitrumOne => Ok(EvmNetwork::ArbitrumOne),
             Self::EvmArbitrumSepoliaTest => Ok(EvmNetwork::ArbitrumSepoliaTest),
+            Self::LightningNetwork => Ok(EvmNetwork::LightningNetwork),
             Self::EvmLocal => {
                 let network = get_evm_network(true, None)?;
                 Ok(network)

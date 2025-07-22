@@ -11,6 +11,7 @@ use color_eyre::Help;
 
 const AVERAGE_GAS_FEE_ARBITRUM_ONE: u128 = 15_000_000;
 const AVERAGE_GAS_FEE_ARBITRUM_SEPOLIA: u128 = 100_000_000;
+const AVERAGE_FEE_LIGHTNING_NETWORK: u128 = 100;
 
 #[derive(Debug, Copy, Clone)]
 pub enum MaxFeePerGasParam {
@@ -27,6 +28,7 @@ impl MaxFeePerGasParam {
         match network {
             Network::ArbitrumOne => Ok(AVERAGE_GAS_FEE_ARBITRUM_ONE),
             Network::ArbitrumSepoliaTest => Ok(AVERAGE_GAS_FEE_ARBITRUM_SEPOLIA),
+            Network::LightningNetwork => Ok(AVERAGE_FEE_LIGHTNING_NETWORK),
             Network::Custom(_) => Err(
                 color_eyre::eyre::eyre!("`--max-fee-per-gas` options `low` and `market` (default) are not supported when using a custom EVM network.")
                     .with_suggestion(|| "Try using a different `--max-fee-per-gas` option, such as `auto`, `limited-auto:<WEI AMOUNT>`, `unlimited`, or a custom value specified in WEI.")

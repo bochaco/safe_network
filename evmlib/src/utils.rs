@@ -21,6 +21,7 @@ use std::env;
 
 const MAINNET_ID: u8 = 1;
 const ALPHANET_ID: u8 = 2;
+const LIGHTNING_NETWORK_ID: u8 = 3;
 
 /// environment variable to connect to a custom EVM network
 pub const RPC_URL: &str = "RPC_URL";
@@ -82,6 +83,10 @@ pub fn get_evm_network(local: bool, network_id: Option<u8>) -> Result<Network, E
                     ALPHANET_ID => {
                         info!("Using Arbitrum Sepolia Test based on network ID {}", id);
                         Ok(Network::ArbitrumSepoliaTest)
+                    }
+                    LIGHTNING_NETWORK_ID => {
+                        println!("Using Lightning Network based on network ID {id}");
+                        Ok(Network::LightningNetwork)
                     }
                     _ => {
                         error!(

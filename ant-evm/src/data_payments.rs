@@ -161,6 +161,9 @@ pub struct PaymentQuote {
     /// the node's libp2p identity public key in bytes (PeerId)
     #[debug(skip)]
     pub pub_key: Vec<u8>,
+    /// The LN payment invoice
+    #[debug(skip)]
+    pub ln_invoice: String,
     /// the node's signature for the quote
     #[debug(skip)]
     pub signature: Vec<u8>,
@@ -180,6 +183,7 @@ impl PaymentQuote {
         timestamp: SystemTime,
         quoting_metrics: &QuotingMetrics,
         rewards_address: &RewardsAddress,
+        ln_invoice: &str,
     ) -> Vec<u8> {
         let mut bytes = xorname.to_vec();
         bytes.extend_from_slice(
@@ -192,6 +196,7 @@ impl PaymentQuote {
         let serialised_quoting_metrics = rmp_serde::to_vec(quoting_metrics).unwrap_or_default();
         bytes.extend_from_slice(&serialised_quoting_metrics);
         bytes.extend_from_slice(rewards_address.as_slice());
+        bytes.extend_from_slice(ln_invoice.as_bytes());
         bytes
     }
 
@@ -202,6 +207,7 @@ impl PaymentQuote {
             self.timestamp,
             &self.quoting_metrics,
             &self.rewards_address,
+            &self.ln_invoice,
         )
     }
 
@@ -261,6 +267,7 @@ impl PaymentQuote {
                 network_size: None,
             },
             pub_key: vec![],
+            ln_invoice: "dummy-ln-invoice".to_string(),
             signature: vec![],
             rewards_address: dummy_address(),
         }

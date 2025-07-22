@@ -20,6 +20,7 @@ impl Node {
         address: &NetworkAddress,
         quoting_metrics: &QuotingMetrics,
         payment_address: &RewardsAddress,
+        ln_invoice: Option<String>,
     ) -> Result<PaymentQuote, ProtocolError> {
         let content = match address {
             NetworkAddress::ChunkAddress(addr) => *addr.xorname(),
@@ -29,8 +30,14 @@ impl Node {
             NetworkAddress::PeerId(_) | NetworkAddress::RecordKey(_) => XorName::default(),
         };
         let timestamp = std::time::SystemTime::now();
-        let bytes =
-            PaymentQuote::bytes_for_signing(content, timestamp, quoting_metrics, payment_address);
+        let ln_invoice = ln_invoice.unwrap_or_default();
+        let bytes = PaymentQuote::bytes_for_signing(
+            content,
+            timestamp,
+            quoting_metrics,
+            payment_address,
+            &ln_invoice,
+        );
 
         let Ok(signature) = network.sign(&bytes) else {
             return Err(ProtocolError::QuoteGenerationFailed);
@@ -42,6 +49,7 @@ impl Node {
             quoting_metrics: quoting_metrics.clone(),
             pub_key: network.get_pub_key(),
             rewards_address: *payment_address,
+            ln_invoice,
             signature,
         };
 

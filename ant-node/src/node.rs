@@ -16,8 +16,8 @@ use crate::networking::MetricsRegistries;
 use crate::networking::{Addresses, Network, NetworkConfig, NetworkError, NetworkEvent, NodeIssue};
 use crate::{PutValidationError, RunningNode};
 use ant_bootstrap::BootstrapCacheStore;
-use ant_evm::EvmNetwork;
 use ant_evm::RewardsAddress;
+use ant_evm::{Amount, EvmNetwork};
 use ant_protocol::{
     CLOSE_GROUP_SIZE, NetworkAddress, PrettyPrintRecordKey,
     error::Error as ProtocolError,
@@ -644,12 +644,17 @@ impl Node {
                                 storage_proofs,
                             }
                         } else {
+                            // TODO: use a proper formula for store cost
+                            let amount = Amount::from(quoting_metrics.data_size / 100);
+                            let ln_invoice = Some(node.evm_network().add_invoice(amount).await);
+
                             QueryResponse::GetStoreQuote {
                                 quote: Self::create_quote_for_storecost(
                                     network,
                                     &key,
                                     &quoting_metrics,
                                     &payment_address,
+                                    ln_invoice,
                                 ),
                                 peer_address: NetworkAddress::from(self_id),
                                 storage_proofs,

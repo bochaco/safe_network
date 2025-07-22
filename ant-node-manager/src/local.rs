@@ -100,7 +100,13 @@ impl Launcher for LocalSafeLauncher {
         args.push("--rewards-address".to_string());
         args.push(rewards_address.to_string());
 
-        args.push(format!("evm-{}", evm_network.identifier()));
+        if matches!(evm_network, EvmNetwork::LightningNetwork) {
+            args.push("--network-id".to_string());
+            args.push(3.to_string()); // FIXME: use pub const
+            args.push(evm_network.identifier().to_string());
+        } else {
+            args.push(format!("evm-{}", evm_network.identifier()));
+        }
 
         if let EvmNetwork::Custom(custom) = evm_network {
             args.push("--rpc-url".to_string());

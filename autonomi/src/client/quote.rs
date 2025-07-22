@@ -11,7 +11,6 @@ use crate::client::data_types::chunk::CHUNK_UPLOAD_BATCH_SIZE;
 use crate::client::utils::process_tasks_with_max_concurrency;
 use crate::networking::Network;
 use crate::networking::common::Addresses;
-use ant_evm::payment_vault::get_market_price;
 use ant_evm::{Amount, PaymentQuote, QuotePayment, QuotingMetrics};
 pub use ant_protocol::storage::DataTypes;
 use ant_protocol::{CLOSE_GROUP_SIZE, NetworkAddress, storage::ChunkAddress};
@@ -153,6 +152,9 @@ impl Client {
             raw_quotes.truncate(CLOSE_GROUP_SIZE);
 
             for (peer_id, addrs, quote) in raw_quotes.into_iter() {
+                // log the LN invoice
+                println!(">>>>>> LN INVOICE: {}", quote.ln_invoice);
+
                 all_quotes.push((content_addr, peer_id, addrs, quote));
             }
         }
@@ -170,7 +172,7 @@ impl Client {
                 quoting_metrics.len()
             );
 
-            let batch_prices = get_market_price(&self.evm_network, quoting_metrics).await?;
+            let batch_prices = self.evm_network.get_market_price(quoting_metrics).await?;
 
             all_prices.extend(batch_prices);
         }

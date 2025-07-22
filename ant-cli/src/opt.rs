@@ -18,6 +18,7 @@ use std::time::Duration;
 pub(crate) const LOCAL_NETWORK_ID: u8 = 0;
 pub(crate) const MAIN_NETWORK_ID: u8 = 1;
 pub(crate) const ALPHA_NETWORK_ID: u8 = 2;
+pub(crate) const LIGHTNING_NETWORK_ID: u8 = 3;
 
 // Please do not remove the blank lines in these doc comments.
 // They are used for inserting line breaks when the help menu is rendered in the UI.
@@ -28,6 +29,7 @@ pub(crate) const ALPHA_NETWORK_ID: u8 = 2;
 /// - 0: Local Network
 /// - 1: Mainnet
 /// - 2: Alpha Network
+/// - 3: Lightning Network
 ///
 /// Custom networks can use any ID from 3 to 255.
 #[derive(Debug, Clone, Copy)]
@@ -63,6 +65,7 @@ impl NetworkId {
             0 => Ok(EvmNetwork::new(true)?),
             1 => Ok(EvmNetwork::default()),
             2 => Ok(EvmNetwork::ArbitrumSepoliaTest),
+            3 => Ok(EvmNetwork::LightningNetwork),
             _ => Ok(get_evm_network(local, Some(self.id))?),
         }
     }
@@ -138,6 +141,7 @@ pub(crate) struct Opt {
     ///  - 0: Local Network
     ///  - 1: Mainnet (default)
     ///  - 2: Alpha Network
+    ///  - 3: Lightning Network
     ///  - 3-255: Custom Networks (obtained through environment variables and other network config flags)
     #[clap(long, verbatim_doc_comment, default_value = "1")]
     pub network_id: NetworkId,
