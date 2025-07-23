@@ -48,7 +48,7 @@ impl TryInto<EvmNetwork> for EvmNetworkCommand {
         match self {
             Self::EvmArbitrumOne => Ok(EvmNetwork::ArbitrumOne),
             Self::EvmArbitrumSepoliaTest => Ok(EvmNetwork::ArbitrumSepoliaTest),
-            Self::LightningNetwork => Ok(EvmNetwork::LightningNetwork),
+            Self::LightningNetwork => Ok(EvmNetwork::new_lightning_network()?),
             Self::EvmLocal => {
                 let network = get_evm_network(true, None)?;
                 Ok(network)

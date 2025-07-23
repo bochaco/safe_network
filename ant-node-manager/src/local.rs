@@ -100,7 +100,7 @@ impl Launcher for LocalSafeLauncher {
         args.push("--rewards-address".to_string());
         args.push(rewards_address.to_string());
 
-        if matches!(evm_network, EvmNetwork::LightningNetwork) {
+        if matches!(evm_network, EvmNetwork::LightningNetwork(_)) {
             args.push("--network-id".to_string());
             args.push(3.to_string()); // FIXME: use pub const
             args.push(evm_network.identifier().to_string());

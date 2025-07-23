@@ -126,7 +126,9 @@ async fn test_pay_for_quotes_and_data_payment_verification() {
             ));
         }
 
-        let result = verify_data_payment(&network, vec![], payments_to_verify.clone()).await;
+        let result = network
+            .verify_data_payment(vec![], payments_to_verify.clone())
+            .await;
 
         assert!(
             result.is_ok(),

@@ -35,7 +35,9 @@ impl Into<EvmNetwork> for EvmNetworkCommand {
         match self {
             Self::EvmArbitrumOne => EvmNetwork::ArbitrumOne,
             Self::EvmArbitrumSepoliaTest => EvmNetwork::ArbitrumSepoliaTest,
-            Self::LightningNetwork => EvmNetwork::LightningNetwork,
+            Self::LightningNetwork => {
+                EvmNetwork::new_lightning_network().expect("FIXME: remove expect")
+            }
             Self::EvmCustom {
                 rpc_url,
                 payment_token_address,

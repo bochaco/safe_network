@@ -119,6 +119,10 @@ pub enum ConnectError {
     /// An error occurred while initializing the EVM network.
     #[error("Failed to initialize the EVM network: {0}")]
     EvmNetworkError(String),
+
+    /// An error occurred while initializing the LN client.
+    #[error("Failed to initialize the LN client: {0}")]
+    LightningNetworkError(String),
 }
 
 /// Errors that can occur during the put operation.
@@ -250,7 +254,8 @@ impl Client {
                 local: true,
                 ..Default::default()
             },
-            evm_network: EvmNetwork::LightningNetwork,
+            evm_network: EvmNetwork::new_lightning_network()
+                .map_err(|err| ConnectError::LightningNetworkError(err.to_string()))?,
             strategy: Default::default(),
             network_id: Some(3), // FIXME: use pub const
             bootstrap_cache_config,

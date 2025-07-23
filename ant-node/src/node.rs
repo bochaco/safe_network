@@ -645,19 +645,37 @@ impl Node {
                             }
                         } else {
                             // TODO: use a proper formula for store cost
-                            let amount = Amount::from(quoting_metrics.data_size / 100);
-                            let ln_invoice = Some(node.evm_network().add_invoice(amount).await);
+                            let amt = quoting_metrics.data_size / 100;
+                            let amount = if amt > 0 {
+                                Amount::from(amt)
+                            } else {
+                                Amount::from(1)
+                            };
+                            let memo =
+                                format!("quote for data of size: {}", quoting_metrics.data_size);
 
-                            QueryResponse::GetStoreQuote {
-                                quote: Self::create_quote_for_storecost(
-                                    network,
-                                    &key,
-                                    &quoting_metrics,
-                                    &payment_address,
-                                    ln_invoice,
-                                ),
-                                peer_address: NetworkAddress::from(self_id),
-                                storage_proofs,
+                            match node.evm_network().add_invoice(memo, amount).await {
+                                Ok(ln_invoice) => QueryResponse::GetStoreQuote {
+                                    quote: Self::create_quote_for_storecost(
+                                        network,
+                                        &key,
+                                        &quoting_metrics,
+                                        &payment_address,
+                                        ln_invoice,
+                                    ),
+                                    peer_address: NetworkAddress::from(self_id),
+                                    storage_proofs,
+                                },
+                                Err(err) => {
+                                    warn!(
+                                        "GetStoreQuote failed to get LN invoice for {key:?}: {err}"
+                                    );
+                                    QueryResponse::GetStoreQuote {
+                                        quote: Err(ProtocolError::QuoteGenerationFailed),
+                                        peer_address: NetworkAddress::from(self_id),
+                                        storage_proofs,
+                                    }
+                                }
                             }
                         }
                     }

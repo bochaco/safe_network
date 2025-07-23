@@ -18,6 +18,7 @@ use crate::quoting_metrics::QuotingMetrics;
 use crate::utils::http_provider;
 
 use crate::common::Address;
+use crate::ln_client::LnClient;
 use crate::utils::get_evm_network;
 use alloy::primitives::address;
 use alloy::transports::http::reqwest;
@@ -34,6 +35,7 @@ pub mod contract;
 pub mod cryptography;
 #[cfg(feature = "external-signer")]
 pub mod external_signer;
+mod ln_client;
 pub mod quoting_metrics;
 mod retry;
 pub mod testnet;
@@ -100,7 +102,7 @@ pub enum Network {
     #[default]
     ArbitrumOne,
     ArbitrumSepoliaTest,
-    LightningNetwork,
+    LightningNetwork(LnClient),
     Custom(CustomNetwork),
 }
 
@@ -109,7 +111,7 @@ impl std::fmt::Display for Network {
         match self {
             Network::ArbitrumOne => write!(f, "evm-arbitrum-one"),
             Network::ArbitrumSepoliaTest => write!(f, "evm-arbitrum-sepolia-test"),
-            Network::LightningNetwork => write!(f, "lightning-network"),
+            Network::LightningNetwork(_) => write!(f, "lightning-network"),
             Network::Custom(_) => write!(f, "evm-custom"),
         }
     }
@@ -122,7 +124,7 @@ impl std::str::FromStr for Network {
         match s {
             "evm-arbitrum-one" => Ok(Network::ArbitrumOne),
             "evm-arbitrum-sepolia-test" => Ok(Network::ArbitrumSepoliaTest),
-            "lightning-network" => Ok(Network::LightningNetwork),
+            "lightning-network" => Ok(Network::new_lightning_network().map_err(|_| ())?),
             _ => Err(()),
         }
     }
@@ -143,11 +145,15 @@ impl Network {
         ))
     }
 
+    pub fn new_lightning_network() -> Result<Self, utils::Error> {
+        Ok(Network::LightningNetwork(LnClient::new()?))
+    }
+
     pub fn identifier(&self) -> &str {
         match self {
             Network::ArbitrumOne => "arbitrum-one",
             Network::ArbitrumSepoliaTest => "arbitrum-sepolia-test",
-            Network::LightningNetwork => "lightning-network",
+            Network::LightningNetwork(_) => "lightning-network",
             Network::Custom(_) => "custom",
         }
     }
@@ -156,7 +162,7 @@ impl Network {
         match self {
             Network::ArbitrumOne => &PUBLIC_ARBITRUM_ONE_HTTP_RPC_URL,
             Network::ArbitrumSepoliaTest => &PUBLIC_ARBITRUM_SEPOLIA_HTTP_RPC_URL,
-            Network::LightningNetwork => &PUBLIC_LND_HTTP_RPC_URL,
+            Network::LightningNetwork(_) => &PUBLIC_LND_HTTP_RPC_URL,
             Network::Custom(custom) => &custom.rpc_url_http,
         }
     }
@@ -166,7 +172,7 @@ impl Network {
             Network::ArbitrumOne => &ARBITRUM_ONE_PAYMENT_TOKEN_ADDRESS,
             Network::ArbitrumSepoliaTest => &ARBITRUM_SEPOLIA_TEST_PAYMENT_TOKEN_ADDRESS,
             Network::Custom(custom) => &custom.payment_token_address,
-            Network::LightningNetwork => todo!("PAYMENT ADDRESS MISSING"),
+            Network::LightningNetwork(_) => todo!("PAYMENT ADDRESS MISSING"),
         }
     }
 
@@ -175,16 +181,23 @@ impl Network {
             Network::ArbitrumOne => &ARBITRUM_ONE_DATA_PAYMENTS_ADDRESS,
             Network::ArbitrumSepoliaTest => &ARBITRUM_SEPOLIA_TEST_DATA_PAYMENTS_ADDRESS,
             Network::Custom(custom) => &custom.data_payments_address,
-            Network::LightningNetwork => {
+            Network::LightningNetwork(_) => {
                 todo!("DATA PAYMENT ADDRESS NOT SUPPORTED FOR LIGHTNING NETWORK")
             }
         }
     }
 
-    /// Add LN invoice if netowkr is LightningNetwork
-    pub async fn add_invoice(&self, amount: Amount) -> String {
-        // TODO: send request to LND node to create an invoice
-        format!("TODO-create-LN-invoice-price-{amount}")
+    /// Add LN invoice if network if LightningNetwork
+    pub async fn add_invoice(
+        &self,
+        memo: impl Into<String>,
+        amount: Amount,
+    ) -> Result<String, utils::Error> {
+        if let Self::LightningNetwork(ln_client) = self {
+            ln_client.add_invoice(memo, amount).await
+        } else {
+            todo!()
+        }
     }
 
     /// Helper function to return a quote for the given quoting metrics.
@@ -192,14 +205,19 @@ impl Network {
         &self,
         quoting_metrics: Vec<QuotingMetrics>,
     ) -> Result<Vec<Amount>, error::Error> {
-        if matches!(self, Self::LightningNetwork) {
+        if matches!(self, Self::LightningNetwork(_)) {
             Ok(quoting_metrics
                 .iter()
                 .map(|q| {
                     // FIXME: use a proper quoting formula
-                    let amt = Amount::from(q.data_size / 100);
-                    println!(">>>> QUOTE for size {}: {amt}", q.data_size);
-                    amt
+                    let amt = q.data_size / 100;
+                    let amount = if amt > 0 {
+                        Amount::from(amt)
+                    } else {
+                        Amount::from(1)
+                    };
+                    println!(">>>> QUOTE for size {}: {amount}", q.data_size);
+                    amount
                 })
                 .collect())
         } else {
@@ -216,7 +234,7 @@ impl Network {
         owned_quote_hashes: Vec<QuoteHash>,
         payment: Vec<(QuoteHash, QuotingMetrics, Address)>,
     ) -> Result<Amount, error::Error> {
-        if matches!(self, Self::LightningNetwork) {
+        if matches!(self, Self::LightningNetwork(_)) {
             // TODO: query the LN node to see if the invoice has been payed
             Err(error::Error::PaymentInvalid)
         } else {

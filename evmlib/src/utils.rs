@@ -35,6 +35,8 @@ const DATA_PAYMENTS_ADDRESS_BUILD_TIME_VAL: Option<&str> = option_env!("DATA_PAY
 pub enum Error {
     #[error("Failed to get EVM network: {0}")]
     FailedToGetEvmNetwork(String),
+    #[error("Failed to get invoice from LND: {0}")]
+    FailedToGetLnInvoice(String),
 }
 
 /// Generate a random Address.
@@ -86,7 +88,7 @@ pub fn get_evm_network(local: bool, network_id: Option<u8>) -> Result<Network, E
                     }
                     LIGHTNING_NETWORK_ID => {
                         println!("Using Lightning Network based on network ID {id}");
-                        Ok(Network::LightningNetwork)
+                        Ok(Network::new_lightning_network()?)
                     }
                     _ => {
                         error!(

@@ -102,6 +102,7 @@ pub(crate) fn bootstrap_error_exit_code(err: &BootstrapError) -> i32 {
 pub(crate) fn connect_error_exit_code(err: &ConnectError) -> i32 {
     match err {
         ConnectError::EvmNetworkError(_) => 61,
+        ConnectError::LightningNetworkError(_) => 63,
         ConnectError::Bootstrap(error) => bootstrap_error_exit_code(error),
         ConnectError::TimedOut => 59,
         ConnectError::TimedOutWithIncompatibleProtocol(_, _) => 60,
@@ -112,5 +113,6 @@ pub(crate) fn connect_error_exit_code(err: &ConnectError) -> i32 {
 pub(crate) fn evm_util_error_exit_code(err: &autonomi::EvmUtilError) -> i32 {
     match err {
         autonomi::EvmUtilError::FailedToGetEvmNetwork(_) => 61,
+        autonomi::EvmUtilError::FailedToGetLnInvoice(_) => 63,
     }
 }

@@ -65,7 +65,7 @@ impl NetworkId {
             0 => Ok(EvmNetwork::new(true)?),
             1 => Ok(EvmNetwork::default()),
             2 => Ok(EvmNetwork::ArbitrumSepoliaTest),
-            3 => Ok(EvmNetwork::LightningNetwork),
+            3 => Ok(EvmNetwork::new_lightning_network()?),
             _ => Ok(get_evm_network(local, Some(self.id))?),
         }
     }
