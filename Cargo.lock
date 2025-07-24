@@ -3365,6 +3365,7 @@ name = "evmlib"
 version = "0.4.2"
 dependencies = [
  "alloy",
+ "futures-util",
  "hex",
  "lnd_grpc_rust",
  "rand 0.8.5",

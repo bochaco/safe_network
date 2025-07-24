@@ -146,7 +146,7 @@ impl Network {
     }
 
     pub fn new_lightning_network() -> Result<Self, utils::Error> {
-        Ok(Network::LightningNetwork(LnClient::new()?))
+        Ok(Network::LightningNetwork(LnClient::new(None, None)?))
     }
 
     pub fn identifier(&self) -> &str {

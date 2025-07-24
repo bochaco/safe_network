@@ -37,6 +37,8 @@ pub enum Error {
     FailedToGetEvmNetwork(String),
     #[error("Failed to get invoice from LND: {0}")]
     FailedToGetLnInvoice(String),
+    #[error("Failed to pay invoice on LN: {0}")]
+    FailedToPayLnInvoice(String),
 }
 
 /// Generate a random Address.

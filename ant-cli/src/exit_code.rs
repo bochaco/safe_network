@@ -114,5 +114,6 @@ pub(crate) fn evm_util_error_exit_code(err: &autonomi::EvmUtilError) -> i32 {
     match err {
         autonomi::EvmUtilError::FailedToGetEvmNetwork(_) => 61,
         autonomi::EvmUtilError::FailedToGetLnInvoice(_) => 63,
+        autonomi::EvmUtilError::FailedToPayLnInvoice(_) => 64,
     }
 }
