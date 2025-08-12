@@ -13,9 +13,9 @@ use std::{
 };
 
 const TAPROOT_ASSET_ID: &str = "d81d8d1a2c0e96726b430b818bf7dfbf543e07b812520aba53f63e3cfd4d041e";
-const TAPROOT_ASSETS_DIR_BOB: &str = "~/.polar/networks/1/volumes/litd/bob";
-const TAPROOT_ASSETS_DIR_ALICE: &str = "~/.polar/networks/1/volumes/litd/alice";
-const TAPROOT_ASSETS_DIR_CAROL: &str = "~/.polar/networks/1/volumes/litd/carol";
+const TAPROOT_ASSETS_DIR_BOB: &str = "/home/bochaco/.polar/networks/1/volumes/litd/bob";
+const TAPROOT_ASSETS_DIR_ALICE: &str = "/home/bochaco/.polar/networks/1/volumes/litd/alice";
+const TAPROOT_ASSETS_DIR_CAROL: &str = "/home/bochaco/.polar/networks/1/volumes/litd/carol";
 const LND_HOST_ALICE: &str = "localhost:13001";
 const LND_HOST_BOB: &str = "localhost:13002";
 const LND_HOST_CAROL: &str = "localhost:13003";

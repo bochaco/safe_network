@@ -17,6 +17,7 @@ use crate::contract::payment_vault::{
 use crate::quoting_metrics::QuotingMetrics;
 use crate::utils::http_provider;
 
+use crate::arkadeos::ArkadeosClient;
 use crate::common::Address;
 use crate::ln_client::LnClient;
 use crate::utils::get_evm_network;
@@ -30,6 +31,7 @@ use std::sync::LazyLock;
 #[macro_use]
 extern crate tracing;
 
+mod arkadeos;
 pub mod common;
 pub mod contract;
 pub mod cryptography;
@@ -188,13 +190,26 @@ impl Network {
     }
 
     /// Add LN invoice if network if LightningNetwork
+    #[allow(dead_code)]
+    #[allow(unused_variables)]
     pub async fn add_invoice(
         &self,
         memo: impl Into<String>,
         amount: Amount,
     ) -> Result<String, utils::Error> {
         if let Self::LightningNetwork(ln_client) = self {
-            ln_client.add_invoice(memo, amount).await
+            // this is to call the LND integration
+            // ln_client.add_invoice(memo, amount).await
+
+            // this is to test ArkadeOS integration
+            let arkadeos_client = ArkadeosClient::new(None)
+                .await
+                .expect("cannot create ark client");
+            Ok(arkadeos_client
+                .get_offchain_address()
+                .await
+                .expect("TODO")
+                .to_string())
         } else {
             todo!()
         }
